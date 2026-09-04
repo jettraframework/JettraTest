@@ -103,52 +103,63 @@ public class JettraTestRunner {
                 StringBuilder failureDetails = new StringBuilder();
                 long startTime = System.currentTimeMillis();
 
-                for (Method method : clazz.getDeclaredMethods()) {
-                    if (method.isAnnotationPresent(JettraTest.class)) {
-                        classTests++;
-                        totalTests++;
-                        try {
-                            Object instance = clazz.getDeclaredConstructor().newInstance();
-                            
-                            // Inject dynamic port if server is running
-                            if (requiresServer && testPort > 0) {
-                                try {
-                                    java.lang.reflect.Field field = clazz.getDeclaredField("ServerPortTest");
-                                    field.setAccessible(true);
-                                    if (field.getType() == Integer.class || field.getType() == int.class) {
-                                        field.set(instance, testPort);
-                                    } else if (field.getType() == String.class) {
-                                        field.set(instance, String.valueOf(testPort));
-                                    }
-                                } catch (NoSuchFieldException e) {
+                invokeStaticLifecycleMethods(clazz, "BeforeAll");
+                try {
+                    for (Method method : clazz.getDeclaredMethods()) {
+                        if (method.isAnnotationPresent(JettraTest.class)) {
+                            classTests++;
+                            totalTests++;
+                            Object instance = null;
+                            try {
+                                instance = clazz.getDeclaredConstructor().newInstance();
+                                
+                                // Inject dynamic port if server is running
+                                if (requiresServer && testPort > 0) {
                                     try {
-                                        java.lang.reflect.Field field = clazz.getDeclaredField("serverPortTest");
+                                        java.lang.reflect.Field field = clazz.getDeclaredField("ServerPortTest");
                                         field.setAccessible(true);
                                         if (field.getType() == Integer.class || field.getType() == int.class) {
                                             field.set(instance, testPort);
                                         } else if (field.getType() == String.class) {
                                             field.set(instance, String.valueOf(testPort));
                                         }
-                                    } catch (NoSuchFieldException ignored) {
+                                    } catch (NoSuchFieldException e) {
+                                        try {
+                                            java.lang.reflect.Field field = clazz.getDeclaredField("serverPortTest");
+                                            field.setAccessible(true);
+                                            if (field.getType() == Integer.class || field.getType() == int.class) {
+                                                field.set(instance, testPort);
+                                            } else if (field.getType() == String.class) {
+                                                field.set(instance, String.valueOf(testPort));
+                                            }
+                                        } catch (NoSuchFieldException ignored) {
+                                        }
                                     }
                                 }
+                                
+                                injectDependencies(instance);
+                                invokeLifecycleMethods(clazz, instance, "BeforeEach");
+                                method.invoke(instance);
+                            } catch (Throwable t) {
+                                classFailures++;
+                                totalFailures++;
+                                
+                                String errorMessage = (t.getCause() != null) ? t.getCause().toString() : t.toString();
+                                failureDetails.append(method.getName()).append(" failed: ").append(errorMessage).append("\n");
+                                
+                                // Print the error directly to the console to simulate standard Maven behavior
+                                System.err.println(ANSI_RED + "  <<< FAILURE! -- in " + clazz.getName());
+                                System.err.println("      Method: " + method.getName() + "()");
+                                System.err.println("      Reason: " + errorMessage + ANSI_RESET);
+                            } finally {
+                                if (instance != null) {
+                                    invokeLifecycleMethods(clazz, instance, "AfterEach");
+                                }
                             }
-                            
-                            injectDependencies(instance);
-                            method.invoke(instance);
-                        } catch (Throwable t) {
-                            classFailures++;
-                            totalFailures++;
-                            
-                            String errorMessage = (t.getCause() != null) ? t.getCause().toString() : t.toString();
-                            failureDetails.append(method.getName()).append(" failed: ").append(errorMessage).append("\n");
-                            
-                            // Print the error directly to the console to simulate standard Maven behavior
-                            System.err.println(ANSI_RED + "  <<< FAILURE! -- in " + clazz.getName());
-                            System.err.println("      Method: " + method.getName() + "()");
-                            System.err.println("      Reason: " + errorMessage + ANSI_RESET);
                         }
                     }
+                } finally {
+                    invokeStaticLifecycleMethods(clazz, "AfterAll");
                 }
 
                 if (classTests > 0) {
@@ -253,6 +264,56 @@ public class JettraTestRunner {
                 }
             }
             clazz = clazz.getSuperclass();
+        }
+    }
+
+    private static void invokeLifecycleMethods(Class<?> clazz, Object instance, String annotationSimpleName) {
+        if (clazz == null || instance == null) return;
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            for (Method m : current.getDeclaredMethods()) {
+                boolean matches = false;
+                for (java.lang.annotation.Annotation ann : m.getAnnotations()) {
+                    if (ann.annotationType().getSimpleName().equals(annotationSimpleName)) {
+                        matches = true;
+                        break;
+                    }
+                }
+                if (matches) {
+                    try {
+                        m.setAccessible(true);
+                        m.invoke(instance);
+                    } catch (Exception e) {
+                        System.err.println("[JettraTestRunner] Error executing @" + annotationSimpleName + " method " + m.getName() + ": " + e.getMessage());
+                    }
+                }
+            }
+            current = current.getSuperclass();
+        }
+    }
+
+    private static void invokeStaticLifecycleMethods(Class<?> clazz, String annotationSimpleName) {
+        if (clazz == null) return;
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            for (Method m : current.getDeclaredMethods()) {
+                boolean matches = false;
+                for (java.lang.annotation.Annotation ann : m.getAnnotations()) {
+                    if (ann.annotationType().getSimpleName().equals(annotationSimpleName)) {
+                        matches = true;
+                        break;
+                    }
+                }
+                if (matches && java.lang.reflect.Modifier.isStatic(m.getModifiers())) {
+                    try {
+                        m.setAccessible(true);
+                        m.invoke(null);
+                    } catch (Exception e) {
+                        System.err.println("[JettraTestRunner] Error executing @" + annotationSimpleName + " method " + m.getName() + ": " + e.getMessage());
+                    }
+                }
+            }
+            current = current.getSuperclass();
         }
     }
 }
