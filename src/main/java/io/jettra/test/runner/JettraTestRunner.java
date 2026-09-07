@@ -58,7 +58,7 @@ public class JettraTestRunner {
                 // Determine if tests need server
                 boolean hasTest = false;
                 for (Method m : clazz.getDeclaredMethods()) {
-                    if (m.isAnnotationPresent(JettraTest.class)) {
+                    if (isTestMethod(m)) {
                         hasTest = true;
                         break;
                     }
@@ -106,12 +106,14 @@ public class JettraTestRunner {
                 invokeStaticLifecycleMethods(clazz, "BeforeAll");
                 try {
                     for (Method method : clazz.getDeclaredMethods()) {
-                        if (method.isAnnotationPresent(JettraTest.class)) {
+                        if (isTestMethod(method)) {
                             classTests++;
                             totalTests++;
                             Object instance = null;
                             try {
-                                instance = clazz.getDeclaredConstructor().newInstance();
+                                java.lang.reflect.Constructor<?> ctor = clazz.getDeclaredConstructor();
+                                ctor.setAccessible(true);
+                                instance = ctor.newInstance();
                                 
                                 // Inject dynamic port if server is running
                                 if (requiresServer && testPort > 0) {
@@ -139,6 +141,7 @@ public class JettraTestRunner {
                                 
                                 injectDependencies(instance);
                                 invokeLifecycleMethods(clazz, instance, "BeforeEach");
+                                method.setAccessible(true);
                                 method.invoke(instance);
                             } catch (Throwable t) {
                                 classFailures++;
@@ -315,5 +318,15 @@ public class JettraTestRunner {
             }
             current = current.getSuperclass();
         }
+    }
+
+    private static boolean isTestMethod(Method m) {
+        if (m == null) return false;
+        if (m.isAnnotationPresent(JettraTest.class)) return true;
+        for (java.lang.annotation.Annotation ann : m.getAnnotations()) {
+            String name = ann.annotationType().getSimpleName();
+            if ("Test".equals(name) || "JettraTest".equals(name)) return true;
+        }
+        return false;
     }
 }
