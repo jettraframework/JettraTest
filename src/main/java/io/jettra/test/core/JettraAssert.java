@@ -37,6 +37,16 @@ public class JettraAssert {
         assertEquals(expected, actual, "Values are not equal");
     }
 
+    public static void assertNotEquals(Object unexpected, Object actual, String message) {
+        if (Objects.equals(unexpected, actual)) {
+            throw new AssertionError(message + " - Did not expect: " + unexpected + ", but was equal");
+        }
+    }
+
+    public static void assertNotEquals(Object unexpected, Object actual) {
+        assertNotEquals(unexpected, actual, "Values are equal");
+    }
+
     public static void assertNotNull(Object object, String message) {
         if (object == null) {
             throw new AssertionError(message);
