@@ -428,21 +428,24 @@ public class JettraTestRunner {
         List<Path> created = new ArrayList<>();
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
-            for (Field field : current.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers()) && hasAnnotation(field, "TempDir")) {
-                    try {
-                        field.setAccessible(true);
-                        Path temp = Files.createTempDirectory("jettra_temp_static_");
-                        created.add(temp);
-                        if (field.getType() == File.class) {
-                            field.set(null, temp.toFile());
-                        } else {
-                            field.set(null, temp);
+            try {
+                for (Field field : current.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers()) && hasAnnotation(field, "TempDir")) {
+                        try {
+                            field.setAccessible(true);
+                            Path temp = Files.createTempDirectory("jettra_temp_static_");
+                            created.add(temp);
+                            if (field.getType() == File.class) {
+                                field.set(null, temp.toFile());
+                            } else {
+                                field.set(null, temp);
+                            }
+                        } catch (Exception e) {
+                            System.err.println("[JettraTestRunner] Error setting static @TempDir on " + field.getName() + ": " + e.getMessage());
                         }
-                    } catch (Exception e) {
-                        System.err.println("[JettraTestRunner] Error setting static @TempDir on " + field.getName() + ": " + e.getMessage());
                     }
                 }
+            } catch (Throwable ignored) {
             }
             current = current.getSuperclass();
         }
@@ -453,21 +456,24 @@ public class JettraTestRunner {
         List<Path> created = new ArrayList<>();
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
-            for (Field field : current.getDeclaredFields()) {
-                if (!Modifier.isStatic(field.getModifiers()) && hasAnnotation(field, "TempDir")) {
-                    try {
-                        field.setAccessible(true);
-                        Path temp = Files.createTempDirectory("jettra_temp_inst_");
-                        created.add(temp);
-                        if (field.getType() == File.class) {
-                            field.set(instance, temp.toFile());
-                        } else {
-                            field.set(instance, temp);
+            try {
+                for (Field field : current.getDeclaredFields()) {
+                    if (!Modifier.isStatic(field.getModifiers()) && hasAnnotation(field, "TempDir")) {
+                        try {
+                            field.setAccessible(true);
+                            Path temp = Files.createTempDirectory("jettra_temp_inst_");
+                            created.add(temp);
+                            if (field.getType() == File.class) {
+                                field.set(instance, temp.toFile());
+                            } else {
+                                field.set(instance, temp);
+                            }
+                        } catch (Exception e) {
+                            System.err.println("[JettraTestRunner] Error setting @TempDir on " + field.getName() + ": " + e.getMessage());
                         }
-                    } catch (Exception e) {
-                        System.err.println("[JettraTestRunner] Error setting @TempDir on " + field.getName() + ": " + e.getMessage());
                     }
                 }
+            } catch (Throwable ignored) {
             }
             current = current.getSuperclass();
         }
@@ -579,36 +585,39 @@ public class JettraTestRunner {
         if (target == null) return;
         Class<?> clazz = target.getClass();
         while (clazz != null && clazz != Object.class) {
-            for (Field field : clazz.getDeclaredFields()) {
-                boolean hasInject = false;
-                for (Annotation ann : field.getAnnotations()) {
-                    if (ann.annotationType().getSimpleName().equals("Inject")) {
-                        hasInject = true;
-                        break;
-                    }
-                }
-                if (hasInject) {
-                    try {
-                        field.setAccessible(true);
-                        if (field.get(target) == null) {
-                            Class<?> type = field.getType();
-                            Class<?> implClass = type;
-                            if (type.isInterface()) {
-                                try {
-                                    implClass = Class.forName(type.getName() + "Impl");
-                                } catch (ClassNotFoundException e) {
-                                    System.err.println("[JettraTestRunner] Implementation not found for interface " + type.getName());
-                                    continue;
-                                }
-                            }
-                            Object injectedInstance = implClass.getDeclaredConstructor().newInstance();
-                            field.set(target, injectedInstance);
-                            injectDependencies(injectedInstance);
+            try {
+                for (Field field : clazz.getDeclaredFields()) {
+                    boolean hasInject = false;
+                    for (Annotation ann : field.getAnnotations()) {
+                        if (ann.annotationType().getSimpleName().equals("Inject")) {
+                            hasInject = true;
+                            break;
                         }
-                    } catch (Exception e) {
-                        System.err.println("[JettraTestRunner] Error injecting dependency into " + field.getName() + ": " + e.getMessage());
+                    }
+                    if (hasInject) {
+                        try {
+                            field.setAccessible(true);
+                            if (field.get(target) == null) {
+                                Class<?> type = field.getType();
+                                Class<?> implClass = type;
+                                if (type.isInterface()) {
+                                    try {
+                                        implClass = Class.forName(type.getName() + "Impl");
+                                    } catch (ClassNotFoundException e) {
+                                        System.err.println("[JettraTestRunner] Implementation not found for interface " + type.getName());
+                                        continue;
+                                    }
+                                }
+                                Object injectedInstance = implClass.getDeclaredConstructor().newInstance();
+                                field.set(target, injectedInstance);
+                                injectDependencies(injectedInstance);
+                            }
+                        } catch (Exception e) {
+                            System.err.println("[JettraTestRunner] Error injecting dependency into " + field.getName() + ": " + e.getMessage());
+                        }
                     }
                 }
+            } catch (Throwable ignored) {
             }
             clazz = clazz.getSuperclass();
         }
