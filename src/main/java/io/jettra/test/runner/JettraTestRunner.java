@@ -18,7 +18,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.jettra.report.exporter.SurefireReporter;
+import io.jettra.test.report.TestReporter;
 
 /**
  * High-performance, Java 25+ test runner engine for JettraTest.
@@ -37,7 +37,7 @@ public class JettraTestRunner {
     public static void main(String[] args) {
         if (Boolean.getBoolean("skipTests") || Boolean.getBoolean("maven.test.skip")
                 || "true".equals(System.getProperty("skipTests")) || "true".equals(System.getProperty("maven.test.skip"))) {
-            System.out.println(ANSI_YELLOW + "Tests are skipped." + ANSI_RESET);
+            IO.println(ANSI_YELLOW + "Tests are skipped." + ANSI_RESET);
             return;
         }
 
@@ -49,9 +49,9 @@ public class JettraTestRunner {
         String testClassesDir = args[0];
         String targetDir = new File(testClassesDir).getParent(); // Usually "target"
 
-        System.out.println(ANSI_CYAN + "-------------------------------------------------------");
-        System.out.println(" T E S T S  (JettraTest Modern Framework - Java 25+)");
-        System.out.println("-------------------------------------------------------" + ANSI_RESET);
+        IO.println(ANSI_CYAN + "-------------------------------------------------------");
+        IO.println(" T E S T S  (JettraTest Modern Framework - Java 25+)");
+        IO.println("-------------------------------------------------------" + ANSI_RESET);
 
         try {
             List<URL> urls = new ArrayList<>();
@@ -94,7 +94,7 @@ public class JettraTestRunner {
                 }
 
                 if (launcherClass != null) {
-                    System.out.println(ANSI_CYAN + "[JettraTestRunner] Server required. Starting via " + launcherClass.getName() + " on port " + testPort + ANSI_RESET);
+                    IO.println(ANSI_CYAN + "[JettraTestRunner] Server required. Starting via " + launcherClass.getName() + " on port " + testPort + ANSI_RESET);
                     try {
                         launcherInstance = launcherClass.getDeclaredConstructor().newInstance();
                         Method startMethod = launcherClass.getMethod("startServer", int.class);
@@ -230,17 +230,17 @@ public class JettraTestRunner {
                     System.out.printf(resultColor + "Tests run: %d, Failures: %d, Errors: 0, Skipped: 0, Time elapsed: %.3f s%n" + ANSI_RESET,
                             classTests, classFailures, timeSec);
 
-                    SurefireReporter.writeReport(targetDir, clazz.getName(), classTests, classFailures, 0, 0, timeSec, failureDetails.toString());
+                    TestReporter.writeReport(targetDir, clazz.getName(), classTests, classFailures, 0, 0, timeSec, failureDetails.toString());
                 }
             }
 
-            System.out.println("\nResults:\n");
+            IO.println("\nResults:\n");
             String totalColor = totalFailures > 0 ? ANSI_RED : ANSI_GREEN;
             System.out.printf(totalColor + "Tests run: %d, Failures: %d, Errors: 0, Skipped: 0%n" + ANSI_RESET, totalTests, totalFailures);
 
             // Phase 3: Stop server
             if (launcherInstance != null) {
-                System.out.println(ANSI_CYAN + "[JettraTestRunner] Stopping server via " + launcherClass.getName() + ANSI_RESET);
+                IO.println(ANSI_CYAN + "[JettraTestRunner] Stopping server via " + launcherClass.getName() + ANSI_RESET);
                 try {
                     Method stopMethod = launcherClass.getMethod("stopServer");
                     stopMethod.invoke(launcherInstance);
@@ -250,7 +250,7 @@ public class JettraTestRunner {
             }
 
             if (totalFailures > 0) {
-                System.out.println("\n" + ANSI_RED + "[ERROR] There are test failures." + ANSI_RESET);
+                IO.println("\n" + ANSI_RED + "[ERROR] There are test failures." + ANSI_RESET);
                 System.exit(1);
             }
 

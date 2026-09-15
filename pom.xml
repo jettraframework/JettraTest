@@ -4,7 +4,7 @@
     <groupId>io.jettra</groupId>
     <artifactId>JettraTest</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>JettraTest</name>
     <description>Jettra Testing Framework for Unit testing, JWT, Mockup and Web UI</description>
 
@@ -13,20 +13,17 @@
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <skipTests>true</skipTests>
+         <jettra.json.version>1.0.0</jettra.json.version>
     </properties>
 
     <dependencies>
         <!-- Adding JSON parsing in case it's needed for JWT responses -->
         <dependency>
-            <groupId>io.jettra</groupId>
+      	    <groupId>com.github.jettraframework</groupId>
             <artifactId>JettraJSON</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
-        <dependency>
-            <groupId>io.jettra</groupId>
-            <artifactId>JettraReport</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
+
     </dependencies>
 
     <build>
